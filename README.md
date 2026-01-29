@@ -33,11 +33,14 @@ Options:
 engulf profile.json --group-by type -o profile.folded
 
 # Now turn the folded stacks into an interactive flame graph (SVG) with
-# Brendan Gregg’s FlameGraph tools:
+# Brendan Gregg’s FlameGraph tools (https://github.com/brendangregg/FlameGraph):
 flamegraph.pl profile.folded > profile.svg
 
 # …or drag & drop `profile.folded` into https://www.speedscope.app/
 ```
+
+This is the svg produced from a temporal agent run. Open the svg in your browser to interact.
+![Agent run workflow byte flamegraph](images/out.svg)
 
 
 ## Viewing the results
