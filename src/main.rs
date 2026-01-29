@@ -1,63 +1,51 @@
-use std::io::{self, BufRead, BufWriter, Write};
-use std::path::PathBuf;
+mod flamegraph;
 
 use clap::Parser;
+use std::path::PathBuf;
 
-/// Engulf – a tiny CLI that (eventually) streams data from an input file
-/// and optionally writes it to an output destination. For now we only parse
-/// and display the provided arguments.
+/// Engulf – analyse JSON and emit results.
 #[derive(Debug, Parser)]
-#[command(
-    name = "engulf",
-    version,
-    about = "Stream data from a file and optionally write it elsewhere"
-)]
+#[command(name = "engulf", version, about)]
 struct Cli {
-    /// Path to the input file to read from (required)
-    #[arg(value_name = "INPUT")]
+    /// Input JSON file
     input: PathBuf,
 
-    /// Optional path to write the streamed data to. Defaults to stdout.
-    #[arg(short, long, value_name = "OUTPUT")]
+    /// Output file (stdout if omitted)
+    #[arg(short, long)]
     output: Option<PathBuf>,
+
+    /// Group array elements by value of this key (flamegraph mode)
+    #[arg(long = "group-by")]
+    group_by: Option<String>,
 }
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
-    // Create a buffered reader for the input file.
-    let input_file = std::fs::File::open(&cli.input)?;
-    let reader = io::BufReader::new(input_file);
+    run_flamegraph(&cli)
+}
 
-    // Count word frequencies naively.
-    use std::collections::HashMap;
-    let mut freqs: HashMap<String, usize> = HashMap::new();
-
-    for line in reader.lines() {
-        let line = line?;
-        for word in line.split_whitespace() {
-            *freqs.entry(word.to_string()).or_insert(0) += 1;
-        }
-    }
-
-    // Setup output destination
-    let stdout;
-    let mut writer: Box<dyn Write> = if let Some(path) = &cli.output {
-        Box::new(BufWriter::new(std::fs::File::create(path)?))
+fn open_output(path: &Option<PathBuf>) -> anyhow::Result<Box<dyn std::io::Write>> {
+    use std::io::BufWriter;
+    if let Some(p) = path {
+        Ok(Box::new(BufWriter::new(std::fs::File::create(p)?)))
     } else {
-        stdout = io::stdout();
-        Box::new(BufWriter::new(stdout.lock()))
+        let stdout = std::io::stdout();
+        Ok(Box::new(BufWriter::new(stdout.lock())))
+    }
+}
+
+fn run_flamegraph(cli: &Cli) -> anyhow::Result<()> {
+    use flamegraph::{ArrayGrouping, FlameOpts, flamegraph_file};
+
+    let opts = FlameOpts {
+        grouping: cli
+            .group_by
+            .as_ref()
+            .map(|k| ArrayGrouping::Key(k.clone()))
+            .unwrap_or(ArrayGrouping::None),
     };
 
-    // Sort by descending frequency; tie-break alphabetically for stability.
-    let mut entries: Vec<_> = freqs.into_iter().collect();
-    entries.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-
-    for (word, count) in entries {
-        writeln!(writer, "{word}: {count}")?;
-    }
-
-    writer.flush()?;
-
-    Ok(())
+    let mut writer = open_output(&cli.output)?;
+    flamegraph_file(&cli.input, &mut writer, &opts)
 }
