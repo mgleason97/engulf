@@ -89,6 +89,13 @@ pub fn analyze_flamegraph(v: &Value, opts: &FlameOpts) -> Vec<(String, u64)> {
                     stack.pop();
                 }
             }
+            Value::String(s) => match serde_json::from_str::<Value>(s) {
+                Ok(v) => visit(&v, stack, map, opts),
+                Err(_) => {
+                    let folded = stack.join(";");
+                    *map.entry(folded).or_default() += encoded_len(val) as u64;
+                }
+            },
             _ => {
                 let folded = stack.join(";");
                 *map.entry(folded).or_default() += encoded_len(val) as u64;
@@ -109,7 +116,7 @@ pub fn flamegraph_file(path: &Path, out: &mut dyn Write, opts: &FlameOpts) -> an
     let json: Value = serde_json::from_reader(file)?;
     let stacks = analyze_flamegraph(&json, opts);
     for (stack, bytes) in stacks {
-        writeln!(out, "{} {}", stack, bytes)?;
+        writeln!(out, "{stack} {bytes}")?;
     }
     Ok(())
 }
