@@ -5,26 +5,12 @@ use std::path::Path;
 
 use serde_json::Value;
 
-/// Strategy for grouping array elements when building folded stacks.
-#[derive(Debug, Clone)]
-pub enum ArrayGrouping {
-    /// treat every element individually
-    None,
-    /// group array elements of object type by the value of a given key
-    Key(String),
-}
-
-#[derive(Debug, Clone)]
+/// Options controlling how JSON is transformed into folded-stack lines.
+#[derive(Debug, Clone, Default)]
 pub struct FlameOpts {
-    pub grouping: ArrayGrouping,
-}
-
-impl Default for FlameOpts {
-    fn default() -> Self {
-        Self {
-            grouping: ArrayGrouping::None,
-        }
-    }
+    /// Sequence of keys used to group array elements (objects only).
+    /// If empty, every element is treated individually (no grouping).
+    pub group_keys: Vec<String>,
 }
 
 /// Writer that only counts bytes written; used to measure encoded JSON length.
@@ -49,6 +35,7 @@ impl Write for CountWriter {
     }
 }
 
+/// Return number of bytes that `v` takes when serialized as JSON.
 fn encoded_len(v: &Value) -> usize {
     let mut w = CountWriter::new();
     serde_json::to_writer(&mut w, v).expect("writing to CountWriter never fails");
@@ -69,17 +56,31 @@ pub fn analyze_flamegraph(v: &Value, opts: &FlameOpts) -> Vec<(String, u64)> {
         match val {
             Value::Array(arr) => {
                 stack.push("[]".to_string());
+
                 for item in arr {
-                    match (&opts.grouping, item) {
-                        (ArrayGrouping::Key(k), Value::Object(obj)) if obj.get(k).is_some() => {
-                            let discr = format!("{}={}", k, obj[k].as_str().unwrap_or("<non-str>"));
-                            stack.push(discr);
-                            visit(item, stack, map, opts);
-                            stack.pop();
+                    if !opts.group_keys.is_empty() {
+                        if let Value::Object(obj) = item {
+                            // Push discriminant for the first key that the
+                            // object actually contains.
+                            if let Some(first_key) =
+                                opts.group_keys.iter().find(|k| obj.contains_key(*k))
+                            {
+                                let discr_val = obj
+                                    .get(first_key)
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("<missing>");
+                                stack.push(format!("{first_key}={discr_val}"));
+                                visit(item, stack, map, opts);
+                                stack.pop();
+                                continue;
+                            }
                         }
-                        _ => visit(item, stack, map, opts),
                     }
+
+                    // Default behaviour (no grouping or non-object element)
+                    visit(item, stack, map, opts);
                 }
+
                 stack.pop();
             }
             Value::Object(o) => {
@@ -89,13 +90,17 @@ pub fn analyze_flamegraph(v: &Value, opts: &FlameOpts) -> Vec<(String, u64)> {
                     stack.pop();
                 }
             }
-            Value::String(s) => match serde_json::from_str::<Value>(s) {
-                Ok(v) => visit(&v, stack, map, opts),
-                Err(_) => {
-                    let folded = stack.join(";");
-                    *map.entry(folded).or_default() += encoded_len(val) as u64;
+            Value::String(s) => {
+                // Attempt to parse strings that themselves contain JSON so
+                // that embedded JSON blobs are also analysed.
+                match serde_json::from_str::<Value>(s) {
+                    Ok(nested) => visit(&nested, stack, map, opts),
+                    Err(_) => {
+                        let folded = stack.join(";");
+                        *map.entry(folded).or_default() += encoded_len(val) as u64;
+                    }
                 }
-            },
+            }
             _ => {
                 let folded = stack.join(";");
                 *map.entry(folded).or_default() += encoded_len(val) as u64;
@@ -105,12 +110,10 @@ pub fn analyze_flamegraph(v: &Value, opts: &FlameOpts) -> Vec<(String, u64)> {
 
     visit(v, &mut stack, &mut map, opts);
 
-    let mut entries: Vec<_> = map.into_iter().collect();
-    entries.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-    entries
+    map.into_iter().collect()
 }
 
-/// Convenience helper: read JSON from `path`, analyze, and write folded stacks.
+/// Convenience helper: read JSON from `path`, analyse, and write folded stacks.
 pub fn flamegraph_file(path: &Path, out: &mut dyn Write, opts: &FlameOpts) -> anyhow::Result<()> {
     let file = File::open(path)?;
     let json: Value = serde_json::from_reader(file)?;

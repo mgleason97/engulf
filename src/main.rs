@@ -14,9 +14,9 @@ struct Cli {
     #[arg(short, long)]
     output: Option<PathBuf>,
 
-    /// Group array elements by value of this key (flamegraph mode)
-    #[arg(long = "group-by")]
-    group_by: Option<String>,
+    /// Group array elements (objects) by one or more keys.
+    #[arg(long = "group-by", num_args = 1.., value_name = "KEY")]
+    group_by: Vec<String>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -36,14 +36,10 @@ fn open_output(path: &Option<PathBuf>) -> anyhow::Result<Box<dyn std::io::Write>
 }
 
 fn run_flamegraph(cli: &Cli) -> anyhow::Result<()> {
-    use flamegraph::{ArrayGrouping, FlameOpts, flamegraph_file};
+    use flamegraph::{FlameOpts, flamegraph_file};
 
     let opts = FlameOpts {
-        grouping: cli
-            .group_by
-            .as_ref()
-            .map(|k| ArrayGrouping::Key(k.clone()))
-            .unwrap_or(ArrayGrouping::None),
+        group_keys: cli.group_by.clone(),
     };
 
     let mut writer = open_output(&cli.output)?;
