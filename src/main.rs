@@ -3,7 +3,7 @@ mod flamegraph;
 use clap::Parser;
 use std::path::PathBuf;
 
-/// Engulf – analyse JSON and emit results.
+/// engulf – folded stacks from json.
 #[derive(Debug, Parser)]
 #[command(name = "engulf", version, about)]
 struct Cli {
