@@ -42,8 +42,8 @@ fn encoded_len(v: &Value) -> usize {
     w.bytes
 }
 
-/// Analyse JSON and return folded-stack entries sorted by descending weight.
-pub fn analyze_flamegraph(v: &Value, opts: &FlameOpts) -> Vec<(String, u64)> {
+/// Parse JSON into folded-stack entries sorted by descending weight.
+pub fn fold_json_to_stacks(v: &Value, opts: &FlameOpts) -> Vec<(String, u64)> {
     let mut stack: Vec<String> = Vec::new();
     let mut map: HashMap<String, u64> = HashMap::new();
 
@@ -117,7 +117,7 @@ pub fn analyze_flamegraph(v: &Value, opts: &FlameOpts) -> Vec<(String, u64)> {
 pub fn flamegraph_file(path: &Path, out: &mut dyn Write, opts: &FlameOpts) -> anyhow::Result<()> {
     let file = File::open(path)?;
     let json: Value = serde_json::from_reader(file)?;
-    let stacks = analyze_flamegraph(&json, opts);
+    let stacks = fold_json_to_stacks(&json, opts);
     for (stack, bytes) in stacks {
         writeln!(out, "{stack} {bytes}")?;
     }
