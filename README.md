@@ -35,7 +35,3 @@ engulf data.json --group-by type -o data.svg
 This is the svg produced from a temporal agent run. Open the svg in your browser to interact.
 ![Agent run workflow byte flamegraph](images/out.svg)
 
-
-## Viewing the results
-
-Open the generated SVG in any browser to interact with the flame graph.
