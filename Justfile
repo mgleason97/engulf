@@ -15,5 +15,5 @@ build:
 wasm-build:
     wasm-pack build crates/engulf-wasm --release --target bundler
 
-wasm-publish:
+wasm-publish: wasm-build
     cd crates/engulf-wasm/pkg && npm publish --access public
