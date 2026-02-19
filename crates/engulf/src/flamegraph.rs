@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{self, Read, Write};
+use std::io::{self, Cursor, Read, Write};
 use std::path::Path;
 
+use inferno::flamegraph as fgraph;
 use serde_json::Value;
 
 /// Options controlling how JSON is transformed into folded-stack lines.
@@ -137,11 +138,31 @@ pub fn write_folded_stacks_from_file<P: AsRef<Path>, W: Write>(
     write_folded_stacks(file, out, opts)
 }
 
+pub fn flamegraph_from_json<R, W>(
+    input: R,
+    out: W,
+    opts: &FlameOpts,
+    title: &str,
+) -> anyhow::Result<()>
+where
+    R: Read,
+    W: Write,
+{
+    let mut buffer = Vec::new();
+    write_folded_stacks(input, &mut buffer, opts)?;
+    let mut fopts = fgraph::Options::default();
+    fopts.title = title.into();
+    let reader = Cursor::new(buffer);
+    fgraph::from_reader(&mut fopts, reader, out)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{FlameOpts, fold_json_to_stacks};
+    use super::{FlameOpts, flamegraph_from_json, fold_json_to_stacks};
     use serde_json::json;
     use std::collections::HashMap;
+    use std::io::Cursor;
 
     #[test]
     fn folds_simple_object() {
@@ -178,6 +199,17 @@ mod tests {
         assert_eq!(map.get("items;[];type=b;type"), Some(&json_len("b")));
         assert_eq!(map.get("items;[];type=b;size"), Some(&json_len(5)));
         assert_eq!(map.len(), 4);
+    }
+
+    #[test]
+    fn writes_svg_from_json_reader() {
+        let v = json!({"a": 1});
+        let input = Cursor::new(serde_json::to_vec(&v).unwrap());
+        let mut out = Vec::new();
+        flamegraph_from_json(input, &mut out, &FlameOpts::default(), "test").unwrap();
+
+        let svg = String::from_utf8(out).unwrap();
+        assert!(svg.contains("<svg"));
     }
 
     fn to_map(stacks: Vec<(String, u64)>) -> HashMap<String, u64> {

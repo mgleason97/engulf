@@ -34,3 +34,20 @@ engulf data.json --group-by type -o data.svg
 
 This is the svg produced from a temporal agent run. Open the svg in your browser to interact.
 ![Agent run workflow byte flamegraph](images/out.svg)
+
+## WebAssembly demo
+
+To build the local wasm package and run the Vite demo:
+
+```bash
+# Build the wasm package (requires wasm-pack)
+just wasm-build
+
+# Install and run the demo UI
+cd www
+npm install
+npm run dev
+```
+
+The demo imports the local wasm package from `crates/engulf-wasm/pkg` and renders
+an SVG after you submit JSON in the UI.
