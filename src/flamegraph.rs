@@ -138,7 +138,7 @@ pub fn write_folded_stacks_from_file<P: AsRef<Path>, W: Write>(
     write_folded_stacks(file, out, opts)
 }
 
-pub fn write_svg_from_json_reader<R, W>(
+pub fn flamegraph_from_json<R, W>(
     input: R,
     out: W,
     opts: &FlameOpts,
@@ -159,7 +159,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{FlameOpts, fold_json_to_stacks, write_svg_from_json_reader};
+    use super::{FlameOpts, flamegraph_from_json, fold_json_to_stacks};
     use serde_json::json;
     use std::collections::HashMap;
     use std::io::Cursor;
@@ -206,7 +206,7 @@ mod tests {
         let v = json!({"a": 1});
         let input = Cursor::new(serde_json::to_vec(&v).unwrap());
         let mut out = Vec::new();
-        write_svg_from_json_reader(input, &mut out, &FlameOpts::default(), "test").unwrap();
+        flamegraph_from_json(input, &mut out, &FlameOpts::default(), "test").unwrap();
 
         let svg = String::from_utf8(out).unwrap();
         assert!(svg.contains("<svg"));

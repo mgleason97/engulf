@@ -1,5 +1,5 @@
 use clap::Parser;
-use engulf::flamegraph::{FlameOpts, write_svg_from_json_reader};
+use engulf::flamegraph::{FlameOpts, flamegraph_from_json};
 use std::io::BufWriter;
 use std::{fs::File, path::PathBuf};
 
@@ -27,6 +27,6 @@ fn main() -> anyhow::Result<()> {
 
     let input = File::open(&cli.input)?;
     let writer = BufWriter::new(File::create(cli.output)?);
-    write_svg_from_json_reader(input, writer, &opts, "Foobar")?;
+    flamegraph_from_json(input, writer, &opts, "Foobar")?;
     Ok(())
 }
