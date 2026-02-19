@@ -14,7 +14,7 @@ Arguments:
   <INPUT>  Input JSON file
 
 Options:
-  -o, --output <OUTPUT>    Output file (stdout if omitted)
+  -o, --output <OUTPUT>    Output file
       --group-by <KEY>...  Group array elements (objects) by one or more keys
   -h, --help               Print help
   -V, --version            Print version
@@ -34,4 +34,3 @@ engulf data.json --group-by type -o data.svg
 
 This is the svg produced from a temporal agent run. Open the svg in your browser to interact.
 ![Agent run workflow byte flamegraph](images/out.svg)
-
