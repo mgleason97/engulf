@@ -1,8 +1,7 @@
 use clap::Parser;
-use engulf::flamegraph::{FlameOpts, write_folded_stacks_from_file};
-use inferno::flamegraph as fgraph;
+use engulf::flamegraph::{FlameOpts, write_svg_from_json_reader};
 use std::io::BufWriter;
-use std::{io::Cursor, path::PathBuf};
+use std::{fs::File, path::PathBuf};
 
 /// engulf – create flamegraphs from json.
 #[derive(Debug, Parser)]
@@ -26,14 +25,8 @@ fn main() -> anyhow::Result<()> {
         group_keys: cli.group_by.clone(),
     };
 
-    let mut buffer = Vec::new();
-    write_folded_stacks_from_file(&cli.input, &mut buffer, &opts)?;
-
-    let writer = BufWriter::new(std::fs::File::create(cli.output)?);
-    let mut opts = fgraph::Options::default();
-    opts.title = "Foobar".into();
-
-    let reader = Cursor::new(buffer);
-    fgraph::from_reader(&mut opts, reader, writer)?;
+    let input = File::open(&cli.input)?;
+    let writer = BufWriter::new(File::create(cli.output)?);
+    write_svg_from_json_reader(input, writer, &opts, "Foobar")?;
     Ok(())
 }
