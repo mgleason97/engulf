@@ -1,2 +1,3 @@
 [workspace]
 members = ["crates/engulf", "crates/engulf-cli", "crates/engulf-wasm"]
+resolver = "2"
