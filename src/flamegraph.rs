@@ -58,22 +58,22 @@ pub fn fold_json_to_stacks(v: &Value, opts: &FlameOpts) -> Vec<(String, u64)> {
                 stack.push("[]".to_string());
 
                 for item in arr {
-                    if !opts.group_keys.is_empty() {
-                        if let Value::Object(obj) = item {
-                            // Push discriminant for the first key that the
-                            // object actually contains.
-                            if let Some(first_key) =
-                                opts.group_keys.iter().find(|k| obj.contains_key(*k))
-                            {
-                                let discr_val = obj
-                                    .get(first_key)
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or("<missing>");
-                                stack.push(format!("{first_key}={discr_val}"));
-                                visit(item, stack, map, opts);
-                                stack.pop();
-                                continue;
-                            }
+                    if !opts.group_keys.is_empty()
+                        && let Value::Object(obj) = item
+                    {
+                        // Push discriminant for the first key that the
+                        // object actually contains.
+                        if let Some(first_key) =
+                            opts.group_keys.iter().find(|k| obj.contains_key(*k))
+                        {
+                            let discr_val = obj
+                                .get(first_key)
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("<missing>");
+                            stack.push(format!("{first_key}={discr_val}"));
+                            visit(item, stack, map, opts);
+                            stack.pop();
+                            continue;
                         }
                     }
 
