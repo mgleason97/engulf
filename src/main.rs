@@ -1,5 +1,3 @@
-mod flamegraph;
-
 use clap::Parser;
 use inferno::flamegraph as fgraph;
 use std::{io::Cursor, path::PathBuf};
@@ -37,14 +35,14 @@ fn open_output(path: &Option<PathBuf>) -> anyhow::Result<Box<dyn std::io::Write>
 }
 
 fn run_flamegraph(cli: &Cli) -> anyhow::Result<()> {
-    use flamegraph::{FlameOpts, write_folded_stacks_from_json_file};
+    use engulf::flamegraph::{FlameOpts, write_folded_stacks_from_file};
 
     let opts = FlameOpts {
         group_keys: cli.group_by.clone(),
     };
 
     let mut buffer = Vec::new();
-    write_folded_stacks_from_json_file(&cli.input, &mut buffer, &opts)?;
+    write_folded_stacks_from_file(&cli.input, &mut buffer, &opts)?;
 
     let writer = open_output(&cli.output)?;
     let mut opts = fgraph::Options::default();

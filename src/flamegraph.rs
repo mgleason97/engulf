@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::path::Path;
 
 use serde_json::Value;
@@ -113,17 +113,78 @@ pub fn fold_json_to_stacks(v: &Value, opts: &FlameOpts) -> Vec<(String, u64)> {
     map.into_iter().collect()
 }
 
-/// Convenience helper: read JSON from `path`, fold, and write folded stacks.
-pub fn write_folded_stacks_from_json_file(
-    path: &Path,
-    out: &mut dyn Write,
-    opts: &FlameOpts,
-) -> anyhow::Result<()> {
-    let file = File::open(path)?;
-    let json: Value = serde_json::from_reader(file)?;
+/// Read JSON from `input`, fold, and write folded stacks.
+pub fn write_folded_stacks<R, W>(input: R, mut out: W, opts: &FlameOpts) -> anyhow::Result<()>
+where
+    R: Read,
+    W: Write,
+{
+    let json: Value = serde_json::from_reader(input)?;
     let stacks = fold_json_to_stacks(&json, opts);
     for (stack, bytes) in stacks {
         writeln!(out, "{stack} {bytes}")?;
     }
     Ok(())
+}
+
+/// Convenience helper: read JSON from `path`, fold, and write folded stacks.
+pub fn write_folded_stacks_from_file<P: AsRef<Path>, W: Write>(
+    path: P,
+    out: W,
+    opts: &FlameOpts,
+) -> anyhow::Result<()> {
+    let file = File::open(path)?;
+    write_folded_stacks(file, out, opts)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{FlameOpts, fold_json_to_stacks};
+    use serde_json::json;
+    use std::collections::HashMap;
+
+    #[test]
+    fn folds_simple_object() {
+        let v = json!({"a": 1, "b": 2});
+        let stacks = fold_json_to_stacks(&v, &FlameOpts::default());
+        let map = to_map(stacks);
+
+        assert_eq!(map.get("a"), Some(&1));
+        assert_eq!(map.get("b"), Some(&1));
+        assert_eq!(map.len(), 2);
+    }
+
+    #[test]
+    fn folds_embedded_json_string() {
+        let v = json!({"x": "{\"y\": 1}"});
+        let stacks = fold_json_to_stacks(&v, &FlameOpts::default());
+        let map = to_map(stacks);
+
+        assert_eq!(map.get("x;y"), Some(&1));
+        assert_eq!(map.len(), 1);
+    }
+
+    #[test]
+    fn folds_grouped_array_entries() {
+        let v = json!({"items": [{"type": "a", "size": 10}, {"type": "b", "size": 5}]});
+        let opts = FlameOpts {
+            group_keys: vec!["type".to_string()],
+        };
+        let stacks = fold_json_to_stacks(&v, &opts);
+        let map = to_map(stacks);
+
+        assert_eq!(map.get("items;[];type=a;type"), Some(&json_len("a")));
+        assert_eq!(map.get("items;[];type=a;size"), Some(&json_len(10)));
+        assert_eq!(map.get("items;[];type=b;type"), Some(&json_len("b")));
+        assert_eq!(map.get("items;[];type=b;size"), Some(&json_len(5)));
+        assert_eq!(map.len(), 4);
+    }
+
+    fn to_map(stacks: Vec<(String, u64)>) -> HashMap<String, u64> {
+        stacks.into_iter().collect()
+    }
+
+    fn json_len<T: serde::Serialize>(value: T) -> u64 {
+        serde_json::to_string(&value).unwrap().len() as u64
+    }
 }
