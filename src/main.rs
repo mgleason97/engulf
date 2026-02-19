@@ -1,7 +1,8 @@
 mod flamegraph;
 
 use clap::Parser;
-use std::path::PathBuf;
+use inferno::flamegraph as fgraph;
+use std::{io::Cursor, path::PathBuf};
 
 /// engulf – folded stacks from json.
 #[derive(Debug, Parser)]
@@ -42,6 +43,14 @@ fn run_flamegraph(cli: &Cli) -> anyhow::Result<()> {
         group_keys: cli.group_by.clone(),
     };
 
-    let mut writer = open_output(&cli.output)?;
-    flamegraph_file(&cli.input, &mut writer, &opts)
+    let mut buffer = Vec::new();
+    flamegraph_file(&cli.input, &mut buffer, &opts)?;
+
+    let writer = open_output(&cli.output)?;
+    let mut opts = fgraph::Options::default();
+    opts.title = "Foobar".into();
+
+    let reader = Cursor::new(buffer);
+    fgraph::from_reader(&mut opts, reader, writer)?;
+    Ok(())
 }
