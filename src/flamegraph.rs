@@ -113,8 +113,12 @@ pub fn fold_json_to_stacks(v: &Value, opts: &FlameOpts) -> Vec<(String, u64)> {
     map.into_iter().collect()
 }
 
-/// Convenience helper: read JSON from `path`, analyse, and write folded stacks.
-pub fn flamegraph_file(path: &Path, out: &mut dyn Write, opts: &FlameOpts) -> anyhow::Result<()> {
+/// Convenience helper: read JSON from `path`, fold, and write folded stacks.
+pub fn write_folded_stacks_from_json_file(
+    path: &Path,
+    out: &mut dyn Write,
+    opts: &FlameOpts,
+) -> anyhow::Result<()> {
     let file = File::open(path)?;
     let json: Value = serde_json::from_reader(file)?;
     let stacks = fold_json_to_stacks(&json, opts);
