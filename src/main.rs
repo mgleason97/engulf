@@ -1,7 +1,5 @@
 use clap::Parser;
-use engulf::flamegraph::write_folded_stacks;
 use inferno::flamegraph as fgraph;
-use std::fs::File;
 use std::{io::Cursor, path::PathBuf};
 
 /// engulf – folded stacks from json.
@@ -44,8 +42,7 @@ fn run_flamegraph(cli: &Cli) -> anyhow::Result<()> {
     };
 
     let mut buffer = Vec::new();
-    let file = File::open(&cli.input)?;
-    write_folded_stacks(file, buffer, &opts)?;
+    write_folded_stacks_from_file(&cli.input, &mut buffer, &opts)?;
 
     let writer = open_output(&cli.output)?;
     let mut opts = fgraph::Options::default();

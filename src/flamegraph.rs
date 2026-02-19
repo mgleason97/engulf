@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+use std::fs::File;
 use std::io::{self, Read, Write};
+use std::path::Path;
 
 use serde_json::Value;
 
@@ -123,6 +125,16 @@ where
         writeln!(out, "{stack} {bytes}")?;
     }
     Ok(())
+}
+
+/// Read JSON from `path`, fold, and write folded stacks.
+pub fn write_folded_stacks_from_file<P: AsRef<Path>, W: Write>(
+    path: P,
+    out: W,
+    opts: &FlameOpts,
+) -> anyhow::Result<()> {
+    let file = File::open(path)?;
+    write_folded_stacks(file, out, opts)
 }
 
 #[cfg(test)]
